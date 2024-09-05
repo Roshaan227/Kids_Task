@@ -1,15 +1,13 @@
 const express = require('express')
+const { loginHandler,signupHandler } = require('../controllers/userController')
 
 
 const router= express.Router()
 
 
-router.get('/',(req,res)=>{
-    res.send("route is ok")
-})
+router.post("/signup",signupHandler)
 
-
-
+router.post("/login",loginHandler)
 
 
 
