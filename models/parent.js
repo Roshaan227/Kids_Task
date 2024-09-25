@@ -1,24 +1,33 @@
 'use strict';
-const {
-  Model
-} = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
-  class Parent extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
-    static associate(models) {
-      // define association here
+  const Parent = sequelize.define('Parent', {
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    familyId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    familyName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    avatar: {  // Column for storing the avatar image
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    gender: {  // Column for gender information
+      type: DataTypes.STRING,
+      allowNull: true,
     }
-  }
-  Parent.init({
-    image: DataTypes.STRING,
-    role: DataTypes.BOOLEAN
-  }, {
-    sequelize,
-    modelName: 'Parent',
-  });
+  }, {});
+
+  Parent.associate = function(models) {
+    Parent.belongsTo(models.User, { foreignKey: 'userId' });
+    Parent.belongsTo(models.Family, { foreignKey: 'familyId' });
+    Parent.belongsToMany(models.Task, { through: 'ParentTasks', foreignKey: 'parentId', as: 'tasks'});
+  };
+
   return Parent;
 };

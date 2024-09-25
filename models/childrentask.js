@@ -1,25 +1,45 @@
 'use strict';
-const {
-  Model
-} = require('sequelize');
+const { Model } = require('sequelize');
+
 module.exports = (sequelize, DataTypes) => {
   class ChildrenTask extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
     static associate(models) {
-      // define association here
+      // Associations between ChildrenTask and Task
+      ChildrenTask.belongsTo(models.Task, {
+        foreignKey: 'taskId',
+        as: 'task'
+      });
+
+      // Associations between ChildrenTask and Child
+      ChildrenTask.belongsTo(models.Child, {
+        foreignKey: 'childId',
+        as: 'child'
+      });
+      
     }
   }
+
   ChildrenTask.init({
-    taskId: DataTypes.INTEGER,
-    childrenId: DataTypes.INTEGER,
-    frequency: DataTypes.INTEGER
+    childId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'Children', // Table name of the child model
+        key: 'id'
+      }
+    },
+    taskId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'Tasks', // Table name of the task model
+        key: 'id'
+      }
+    }
   }, {
     sequelize,
     modelName: 'ChildrenTask',
   });
+
   return ChildrenTask;
 };

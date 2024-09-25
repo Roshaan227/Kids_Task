@@ -1,0 +1,136 @@
+
+const express = require('express');
+const { Task,Parent, User, Child, ChildrenTask } = require('../models');
+const authenticateToken = require('../middleware/authenticateToken');
+const checkIfParent = require('../middleware/checkParent');
+const router = express.Router();
+
+// Controller to assign a task to a user (child)
+router.post('/create', checkIfParent, async (req, res) => {
+  try {
+    const userId = req.user._id; // Get the user ID from the token
+    const { taskName, taskImage, taskScore, childIds } = req.body;
+
+    // Validate input
+    if (!taskName || !taskImage || !taskScore || !childIds || !Array.isArray(childIds)) {
+      return res.status(400).json({ message: "Task name, image, score, and child IDs are required" });
+    }
+
+    // Fetch the parent's family ID
+    const parent = await Parent.findOne({ where: { userId } });
+    if (!parent) {
+      return res.status(404).json({ message: "Parent not found" });
+    }
+    const familyId = parent.familyId;
+
+    // Check if all child IDs belong to the same family as the parent
+    const children = await Child.findAll({
+      where: {
+        id: childIds,
+        familyId
+      }
+    });
+
+    if (children.length !== childIds.length) {
+      return res.status(400).json({ message: "One or more child IDs do not belong to your family" });
+    }
+
+    // Create a new task
+    const task = await Task.create({
+      userId, // Automatically associate the task with the user from the token
+      taskName,
+      taskImage,
+      taskScore
+    });
+
+    // Associate the task with each valid child
+    for (const childId of childIds) {
+      await ChildrenTask.create({
+        childId,
+        taskId: task.id
+      });
+    }
+
+    res.status(201).json({
+      message: "Task assigned successfully",
+      task
+    });
+  } catch (err) {
+    console.error("Error:", err.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+
+router.get('/all', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user._id; // Get the user ID from the token
+
+    // Fetch all tasks associated with the user, including details about assigned children
+    const tasks = await Task.findAll({
+      where: { userId },
+      include: [
+        {
+          model: ChildrenTask,
+          as: 'childrenTasks', // Use the correct alias
+          include: [
+            {
+              model: Child,
+              as: 'child',
+              attributes: ['id', 'avatar', 'gender', 'childrenDOB'] // Include any additional fields you want
+            }
+          ]
+        }
+      ]
+    });
+
+    // If no tasks are found
+    if (tasks.length === 0) {
+      return res.status(404).json({ message: "No tasks found for this user" });
+    }
+
+    res.status(200).json({ tasks });
+  } catch (err) {
+    console.error("Error:", err.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+// Controller to get all tasks assigned to a child
+router.get('/child', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user._id; // Get the user ID from the token
+
+    // Fetch the child associated with the authenticated user
+    const child = await Child.findOne({ where: { userId } });
+    
+    if (!child) {
+      return res.status(404).json({ message: "Child not found" });
+    }
+
+    const childId = child.id; // Extract the child ID
+
+    // Fetch all tasks associated with the child
+    const tasks = await Task.findAll({
+      include: {
+        model: ChildrenTask,
+        as: 'childrenTasks', // Use the correct alias
+        where: { childId }
+      }
+    });
+
+    // If no tasks are found
+    if (tasks.length === 0) {
+      return res.status(404).json({ message: "No tasks found for this child" });
+    }
+
+    res.status(200).json({ tasks });
+  } catch (err) {
+    console.error("Error:", err.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+// Controller to delete a task for a user (child)
+
+module.exports = router;
